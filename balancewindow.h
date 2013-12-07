@@ -28,6 +28,10 @@
 
 #include <QProgressBar>
 
+#include <QMenu>
+
+const bool d = false;
+
 namespace Ui {
 class BalanceWindow;
 }
@@ -41,7 +45,7 @@ public:
     ~BalanceWindow();
 
 private:
-        Ui::BalanceWindow *ui;
+    Ui::BalanceWindow *ui;
 
     QNetworkProxy *proxy;
     QNetworkAccessManager *manager;
@@ -52,6 +56,12 @@ private:
     QProgressBar *progress;
 
     QSystemTrayIcon *trayIcon;
+    QMenu *trayMenu;
+    enum {
+        INFO = QSystemTrayIcon::Information,
+        WARNING = QSystemTrayIcon::Warning,
+        CRYTICAL = QSystemTrayIcon::Critical};
+
     QPixmap ico;
     QIcon icon;
 
@@ -59,8 +69,6 @@ private:
     QTimer *trayMessageTimer;
 
     QSettings *settings;
-
-
 
     void getSettings();
     void setupStatusBar();
@@ -73,6 +81,7 @@ private:
     double _balance;
     double _payment;
     QDateTime lastUpdate;
+    QDate needPay;
 
     void closeEvent(QCloseEvent * event);
 
@@ -93,6 +102,8 @@ private slots:
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
     void showMessage();
     void on_quitAction_triggered();
+    void on_pushButton_3_clicked();
+    void on_pushButton_4_clicked();
 };
 
 #endif // BALANCEWINDOW_H

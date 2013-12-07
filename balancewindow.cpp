@@ -15,20 +15,29 @@ BalanceWindow::BalanceWindow(QWidget *parent) :
 
     setCentralWidget(ui->tabWidget);
 
-    ui->tab->setLayout(ui->verticalLayout);
+    ui->tab->setLayout(ui->infoLayout);
+    ui->tab_2->setLayout(ui->settingsLayout);
+
+    ui->authPage->setLayout(ui->authLayout);
+    ui->mainSetPage->setLayout(ui->mainSetLayout);
 
     setupStatusBar();
 
     setupTrayIcon();
 
-        trayMessageTimer = new QTimer();
-        trayMessageTimer->setSingleShot(true);
+    trayMessageTimer = new QTimer();
+    trayMessageTimer->setSingleShot(true);
     updateTimer = new QTimer();
     connect(updateTimer, SIGNAL(timeout()), this, SLOT(updateBalance()));
 
+    connect(ui->updateAction, SIGNAL(triggered()), this, SLOT(updateBalance()));
+
+
+
     getSettings();
 
-    updateBalance();
+    if(!d)
+        updateBalance();
 }
 
 BalanceWindow::~BalanceWindow()
@@ -39,7 +48,8 @@ BalanceWindow::~BalanceWindow()
 void BalanceWindow::closeEvent(QCloseEvent * event)
 {
     setVisible(false);
-    event->ignore();
+    if(!d)
+        event->ignore();
 }
 
 void BalanceWindow::getSettings(){
@@ -50,11 +60,11 @@ void BalanceWindow::getSettings(){
     settings->beginGroup("MAIN");
     double b = settings->value("LASTBALANCE", 0.00).toDouble();
     lastUpdate = settings->value("LASTUPDATE", QDateTime()).toDateTime();
-    updateTimer->setInterval(settings->value("AUPDINTERVAL", 60000).toInt());
+    updateTimer->setInterval(settings->value("AUPDINTERVAL", 60000*60).toInt());
     if(settings->value("AUTOUPDATE", true).toBool())
-            updateTimer->start();
+        updateTimer->start();
     else
-            updateTimer->stop();
+        updateTimer->stop();
 
     settings->endGroup();
 
@@ -76,25 +86,14 @@ void BalanceWindow::setupTrayIcon(){
 
     trayIcon->show();
     updateTrayIcon(120.);
-}
 
-void BalanceWindow::updateBalance(){
-    setupWebView();
-    setupConnection();
-}
+    trayMenu = new QMenu();
+    trayIcon->setContextMenu(trayMenu);
 
-void BalanceWindow::updateTrayIcon(double b){
-    QPainter i;
+    trayMenu->addAction(ui->updateAction);
+    trayMenu->addSeparator();
+    trayMenu->addAction(ui->quitAction);
 
-    ico = QPixmap(64,64);
-    ico.fill(QColor("#fff"));
-    i.begin(&ico);
-
-    b < 1000 ?  i.setFont(QFont("Agency FB", 38)) : i.setFont(QFont("Agency FB", 30));
-    i.drawText(QRect(0,0,64,64), Qt::AlignCenter, QString("%1").arg(b,0,'D' ,0));
-    i.end();
-
-    trayIcon->setIcon(QIcon(ico.scaled(16,16,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
 }
 
 void BalanceWindow::setupConnection(){
@@ -123,8 +122,24 @@ void BalanceWindow::setupWebView(){
 
     webView->load(QUrl("https:////bill.sibttk.ru//login"));
 }
+void BalanceWindow::updateBalance(){
+    setupWebView();
+    setupConnection();
+}
 
+void BalanceWindow::updateTrayIcon(double b){
+    QPainter i;
 
+    ico = QPixmap(64,64);
+    ico.fill(QColor("#fff"));
+    i.begin(&ico);
+
+    b < 1000 ?  i.setFont(QFont("Agency FB", 38)) : i.setFont(QFont("Agency FB", 30));
+    i.drawText(QRect(0,0,64,64), Qt::AlignCenter, QString("%1").arg(b,0,'D' ,0));
+    i.end();
+
+    trayIcon->setIcon(QIcon(ico.scaled(16,16,Qt::KeepAspectRatio,Qt::SmoothTransformation)));
+}
 
 void BalanceWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
 {
@@ -133,6 +148,7 @@ void BalanceWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
         if(trayMessageTimer)
             trayMessageTimer->stop();
         isVisible() ? setVisible(false) : setVisible(true);
+        setFocus();
         break;
     case QSystemTrayIcon::Trigger:
         connect(trayMessageTimer,SIGNAL(timeout()),this,SLOT(showMessage()));
@@ -142,6 +158,8 @@ void BalanceWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
         break;
     case QSystemTrayIcon::MiddleClick:
         showMessage();
+    case QSystemTrayIcon::Context:
+        trayIcon->contextMenu()->show();
         break;
     default:
         ;
@@ -155,8 +173,9 @@ void BalanceWindow::showMessage()
     trayIcon->showMessage("Текущее состояние счёта",
                           QString("Баланс: %1 руб.\nРекомендуется пополнить счёт до %2")
                           .arg(_balance)
-                          .arg("01.01.2001"),
+                          .arg(needPay.toString("dd.MM.yy")),
                           QSystemTrayIcon::Information, 1000);
+    
 }
 
 void BalanceWindow::onproxyAuthenticationRequired(QNetworkProxy proxy, QAuthenticator *manager)
@@ -235,17 +254,33 @@ void BalanceWindow::setBalance(double b){
     updateTrayIcon(b);
     ui->lastUpdate->setText(lastUpdate.toString("dd.MM.yyг. hh:mm"));
 
+
+
     _balance >= 0 ?
                 ui->dayTo->setText(QString("%1").arg((_balance/_payment),0,'D',0)):
                 ui->dayTo->setText(0);
 
-    ui->payTo->setText(QDate::currentDate().addDays((_balance/_payment)-1).toString("dd.MM.yy"));
+    needPay = QDate::currentDate().addDays((_balance/_payment)-1);
+    ui->payTo->setText(needPay.toString("dd.MM.yy"));
 
 }
-
 
 
 void BalanceWindow::on_quitAction_triggered()
 {
     QCoreApplication::exit();
+}
+
+void BalanceWindow::on_pushButton_3_clicked()
+{
+    ui->stackedWidget->currentIndex()+1 != ui->stackedWidget->count()?
+                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->currentIndex()+1):
+                ui->stackedWidget->setCurrentIndex(0);
+}
+
+void BalanceWindow::on_pushButton_4_clicked()
+{
+    ui->stackedWidget->currentIndex() != 0?
+                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->currentIndex()-1):
+                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->count()-1);
 }
