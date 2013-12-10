@@ -13,10 +13,7 @@
 #include <QNetworkAccessManager>
 #include <QAuthenticator>
 
-#include <QWebView>
-#include <QWebFrame>
-#include <QWebElement>
-#include <QWebElementCollection>
+
 
 #include <QDebug>
 
@@ -30,7 +27,13 @@
 
 #include <QMenu>
 
-const bool d = false;
+#include "smtp.h"
+
+#include "settingsdialog.h"
+
+#include "balancewebview.h"
+
+const bool d = true;
 
 namespace Ui {
 class BalanceWindow;
@@ -50,10 +53,11 @@ private:
     QNetworkProxy *proxy;
     QNetworkAccessManager *manager;
 
-    QWebView *webView;
+    BalanceWebView *webView;
     bool isAuthPage;
 
     QProgressBar *progress;
+    QLabel *status;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
@@ -70,7 +74,7 @@ private:
 
     QSettings *settings;
 
-    void getSettings();
+
     void setupStatusBar();
     void setupWebView();
     void setupTrayIcon();
@@ -80,6 +84,8 @@ private:
 
     double _balance;
     double _payment;
+    double _criticalBalance;
+    double _warningBalance;
     QDateTime lastUpdate;
     QDate needPay;
 
@@ -88,6 +94,8 @@ private:
 
 
 private slots:
+    void setStatus(QString text);
+
     void updateBalance();
 
     void onproxyAuthenticationRequired(QNetworkProxy proxy, QAuthenticator *manager);
@@ -102,8 +110,9 @@ private slots:
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
     void showMessage();
     void on_quitAction_triggered();
-    void on_pushButton_3_clicked();
-    void on_pushButton_4_clicked();
+    void on_settingsAction_triggered();
+
+    void getSettings();
 };
 
 #endif // BALANCEWINDOW_H

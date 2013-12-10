@@ -13,8 +13,15 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        balancewindow.cpp
+        balancewindow.cpp\
+        smtp.cpp \
+    settingsdialog.cpp \
+    balancewebview.cpp
 
-HEADERS  += balancewindow.h
+HEADERS  += balancewindow.h\
+        smtp.h \
+    settingsdialog.h \
+    balancewebview.h
 
-FORMS    += balancewindow.ui
+FORMS    += balancewindow.ui \
+    settingsdialog.ui

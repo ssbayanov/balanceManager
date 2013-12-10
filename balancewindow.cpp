@@ -13,13 +13,7 @@ BalanceWindow::BalanceWindow(QWidget *parent) :
 
     isAuthPage = true;
 
-    setCentralWidget(ui->tabWidget);
-
-    ui->tab->setLayout(ui->infoLayout);
-    ui->tab_2->setLayout(ui->settingsLayout);
-
-    ui->authPage->setLayout(ui->authLayout);
-    ui->mainSetPage->setLayout(ui->mainSetLayout);
+    setCentralWidget(ui->verticalLayoutWidget);
 
     setupStatusBar();
 
@@ -58,10 +52,10 @@ void BalanceWindow::getSettings(){
     settings->setIniCodec(QTextCodec::codecForName("UTF-8"));
 
     settings->beginGroup("MAIN");
-    double b = settings->value("LASTBALANCE", 0.00).toDouble();
-    lastUpdate = settings->value("LASTUPDATE", QDateTime()).toDateTime();
-    updateTimer->setInterval(settings->value("AUPDINTERVAL", 60000*60).toInt());
-    if(settings->value("AUTOUPDATE", true).toBool())
+    double b = settings->value("LastBalance", 0.00).toDouble();
+    lastUpdate = settings->value("LastUpdate", QDateTime()).toDateTime();
+    updateTimer->setInterval(settings->value("UpdatePeriod", 60000*60).toInt());
+    if(settings->value("AutoUpdate", true).toBool())
         updateTimer->start();
     else
         updateTimer->stop();
@@ -74,9 +68,14 @@ void BalanceWindow::getSettings(){
 
 void BalanceWindow::setupStatusBar(){
     progress = new QProgressBar(ui->statusBar);
+
     ui->statusBar->addWidget(progress);
-    ui->statusBar->addWidget(new QProgressBar(ui->statusBar));
-    QProgressBar(ui->statusBar->childAt(0,0)).setValue(100);
+
+    status = new QLabel(ui->statusBar);
+    ui->statusBar->addWidget(status);
+
+    setStatus("Готово");
+
 }
 
 void BalanceWindow::setupTrayIcon(){
@@ -92,6 +91,8 @@ void BalanceWindow::setupTrayIcon(){
 
     trayMenu->addAction(ui->updateAction);
     trayMenu->addSeparator();
+    trayMenu->addAction(ui->settingsAction);
+    trayMenu->addSeparator();
     trayMenu->addAction(ui->quitAction);
 
 }
@@ -106,7 +107,7 @@ void BalanceWindow::setupConnection(){
 }
 
 void BalanceWindow::setupWebView(){
-    webView = new QWebView();
+    webView = new BalanceWebView();
 
     //this->setCentralWidget(webView);
     //webView->show();
@@ -122,6 +123,11 @@ void BalanceWindow::setupWebView(){
 
     webView->load(QUrl("https:////bill.sibttk.ru//login"));
 }
+
+void BalanceWindow::setStatus(QString text){
+    status->setText(text);
+}
+
 void BalanceWindow::updateBalance(){
     setupWebView();
     setupConnection();
@@ -192,39 +198,36 @@ void BalanceWindow::progressLoad(int f){
 
 void BalanceWindow::finishLoad(bool finished){
     if(finished){
-        if(webView->page()->mainFrame()->toPlainText().indexOf("Лицевой счет") < 0){ //Login to bill system
-            QWebElement doc = webView->page()->mainFrame()->documentElement().findFirst("input[type=\"text\"]");
-            doc.setAttribute("value", "241591301");
+        if(webView->isHaveText("Лицевой счет")){ //Get balance
+            setStatus("Авторизация прошла успешно");
 
-            doc = webView->page()->mainFrame()->documentElement().findFirst("input[type=\"password\"]");
-            doc.setAttribute("value", "89233206703");
+            updateBalance(webView->getBalance());
 
-            doc = webView->page()->mainFrame()->documentElement().findFirst("input[type=\"image\"]");
-
-            QString name = doc.attribute("name");
-            webView->page()->mainFrame()->evaluateJavaScript("document.getElementsByName(\""+name+"\").item(0).click();");
-            isAuthPage = false;
-        }
-        else{   //Get balance
-            QString balanceString = webView->page()->mainFrame()->documentElement().findFirst("div[class=\"main\"]").nextSibling().nextSibling().lastChild().lastChild().toPlainText();
-
-            //qDebug()<<balanceString;
-
-            QRegExp rx("(\\d*\\,\\d+)");
-            rx.indexIn(balanceString);
-
-            if(balanceString.indexOf(QString("Задолженность %1").arg(rx.capturedTexts().last())) >= 0)
-                updateBalance(-QString(rx.capturedTexts().last()).replace(",",".").toDouble());
-            else
-                updateBalance(QString(rx.capturedTexts().last()).replace(",",".").toDouble());
             isAuthPage = true;
+
+            delete webView;
+        }
+        else if(webView->isHaveText("Введенная информация неверна")){
+            setStatus("Ошибка авторизации");
+            progress->setValue(100);
+        }
+        else{   //Login to bill system
+            setStatus("Авторизация");
+            settings->beginGroup("AUTH");
+            webView->tryAuth(settings->value("Login").toString(),settings->value("Pass").toString());
+
+            isAuthPage = false;
         }
 
     }
     else
     {
-        qDebug()<<"load failed";
+        //qDebug()<<"load failed";
+        setStatus("Ошибка загрузки страницы");
+        delete webView;
     }
+
+
 }
 
 void BalanceWindow::updateBalance(double b)
@@ -241,9 +244,9 @@ void BalanceWindow::updateBalance(double b)
 
 void BalanceWindow::updateMainSettings(){
     settings->beginGroup("MAIN");
-    settings->setValue("LASTBALANCE",_balance);
-    settings->setValue("PAYMENT",_payment);
-    settings->setValue("LASTUPDATE",lastUpdate);
+    settings->setValue("LastBalance",_balance);
+    settings->setValue("Payment",_payment);
+    settings->setValue("LastUpdate",lastUpdate);
 
     settings->endGroup();
 }
@@ -271,16 +274,9 @@ void BalanceWindow::on_quitAction_triggered()
     QCoreApplication::exit();
 }
 
-void BalanceWindow::on_pushButton_3_clicked()
+void BalanceWindow::on_settingsAction_triggered()
 {
-    ui->stackedWidget->currentIndex()+1 != ui->stackedWidget->count()?
-                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->currentIndex()+1):
-                ui->stackedWidget->setCurrentIndex(0);
-}
-
-void BalanceWindow::on_pushButton_4_clicked()
-{
-    ui->stackedWidget->currentIndex() != 0?
-                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->currentIndex()-1):
-                ui->stackedWidget->setCurrentIndex(ui->stackedWidget->count()-1);
+    SettingsDialog *d = new SettingsDialog(this);
+    d->setModal(true);
+    d->show();
 }
