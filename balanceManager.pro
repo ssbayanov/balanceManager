@@ -16,12 +16,19 @@ SOURCES += main.cpp\
         balancewindow.cpp\
         smtp.cpp \
     settingsdialog.cpp \
-    balancewebview.cpp
+    balancewebview.cpp \
+    settings.cpp
 
 HEADERS  += balancewindow.h\
         smtp.h \
     settingsdialog.h \
-    balancewebview.h
+    balancewebview.h \
+    settings.h
 
 FORMS    += balancewindow.ui \
     settingsdialog.ui
+
+OTHER_FILES +=
+
+RESOURCES += \
+    icons.qrc

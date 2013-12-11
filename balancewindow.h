@@ -48,6 +48,8 @@ public:
     ~BalanceWindow();
 
 private:
+    QSystemTrayIcon::MessageIcon INFO, WARNING, CRYTICAL;
+
     Ui::BalanceWindow *ui;
 
     QNetworkProxy *proxy;
@@ -61,10 +63,8 @@ private:
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
-    enum {
-        INFO = QSystemTrayIcon::Information,
-        WARNING = QSystemTrayIcon::Warning,
-        CRYTICAL = QSystemTrayIcon::Critical};
+
+
 
     QPixmap ico;
     QIcon icon;
@@ -108,11 +108,12 @@ private slots:
     void setBalance(double b);
 
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
-    void showMessage();
+    void showMessage(QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information);
     void on_quitAction_triggered();
     void on_settingsAction_triggered();
 
     void getSettings();
+
 };
 
 #endif // BALANCEWINDOW_H

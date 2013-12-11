@@ -18,6 +18,10 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
 }
 
 void SettingsDialog::loadSettings(){
+    QSettings sett("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               QSettings::NativeFormat);
+
+    ui->autoStartCheckBox->setChecked(sett.childKeys().contains("BalanceManager",Qt::CaseSensitive));
 
     settings = new QSettings(QString("%1\\config.ini").arg(QApplication::applicationDirPath()), QSettings::IniFormat);
     settings->setIniCodec(QTextCodec::codecForName("UTF-8"));
@@ -73,6 +77,12 @@ SettingsDialog::~SettingsDialog()
 
 void SettingsDialog::on_buttonBox_accepted()
 {
+    QSettings sett("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               QSettings::NativeFormat);
+    if(ui->autoStartCheckBox->isChecked())
+        sett.setValue("BalanceManager",QString("\"%1\"").arg(QApplication::applicationFilePath().replace("/","\\")));
+    else
+        sett.remove("BalanceManager");
 
     settings->beginGroup("MAIN");
     settings->setValue("AutoUpdate",ui->autoUpdateCheckBox->isChecked());
