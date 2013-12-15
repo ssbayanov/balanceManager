@@ -6,18 +6,7 @@
 
 #include <QSystemTrayIcon>
 
-#include <QSettings>
-
-#include <QSettings>
-#include <QNetworkProxy>
-#include <QNetworkAccessManager>
-#include <QAuthenticator>
-
-
-
 #include <QDebug>
-
-#include<QDateTime>
 
 #include <QTimer>
 
@@ -28,6 +17,8 @@
 #include <QMenu>
 
 #include "smtp.h"
+
+#include "settings.h"
 
 #include "settingsdialog.h"
 
@@ -52,8 +43,7 @@ private:
 
     Ui::BalanceWindow *ui;
 
-    QNetworkProxy *proxy;
-    QNetworkAccessManager *manager;
+
 
     BalanceWebView *webView;
     bool isAuthPage;
@@ -72,43 +62,31 @@ private:
     QTimer *updateTimer;
     QTimer *trayMessageTimer;
 
-    QSettings *settings;
+    Settings *settings;
 
 
     void setupStatusBar();
     void setupWebView();
     void setupTrayIcon();
-    void setupConnection();
+
     void updateTrayIcon(double b);
     void updateMainSettings();
 
-    double _balance;
-    double _payment;
-    double _criticalBalance;
-    double _warningBalance;
-    QDateTime lastUpdate;
-    QDate needPay;
-
     void closeEvent(QCloseEvent * event);
-
-
-
 private slots:
     void setStatus(QString text);
 
     void updateBalance();
 
-    void onproxyAuthenticationRequired(QNetworkProxy proxy, QAuthenticator *manager);
+    void updateInfo();
+
+    void sendEmail(Settings::LevelBalance level = Settings::NORMAL);
 
     void finishLoad(bool finished);
     void progressLoad(int);
 
-    void updateBalance(double b);
-
-    void setBalance(double b);
-
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
-    void showMessage(QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information);
+    void showMessage(Settings::LevelBalance level = Settings::NORMAL);
     void on_quitAction_triggered();
     void on_settingsAction_triggered();
 

@@ -189,7 +189,6 @@
      </item>
     </layout>
    </widget>
-   <zorder>stackedWidget</zorder>
    <zorder>verticalLayoutWidget</zorder>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>

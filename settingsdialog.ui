@@ -26,7 +26,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="mainTab">
        <attribute name="title">
@@ -385,8 +385,8 @@
          </item>
          <item row="1" column="1">
           <widget class="QLineEdit" name="smtpPort">
-           <property name="text">
-            <string>554</string>
+           <property name="maxLength">
+            <number>32760</number>
            </property>
           </widget>
          </item>
@@ -414,6 +414,29 @@
            </property>
           </widget>
          </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="smtpEmailLabel">
+           <property name="text">
+            <string>Адрес e-mail</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="smtpEmail"/>
+         </item>
+         <item row="5" column="1">
+          <widget class="QPushButton" name="pushButton">
+           <property name="maximumSize">
+            <size>
+             <width>70</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Тест</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </widget>
@@ -436,8 +459,11 @@
            <property name="text">
             <string>Без прокси</string>
            </property>
-           <property name="checked">
+           <property name="checkable">
             <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
@@ -449,6 +475,13 @@
           </widget>
          </item>
          <item>
+          <widget class="QRadioButton" name="httpCashingProxyRadio">
+           <property name="text">
+            <string>Http Cashing</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QRadioButton" name="socks5ProxyRadio">
            <property name="text">
             <string>Socks5</string>
@@ -456,26 +489,29 @@
           </widget>
          </item>
          <item>
-          <layout class="QGridLayout" name="gridLayout_2">
-           <item row="0" column="1">
-            <widget class="QLabel" name="proxyPortLabel">
+          <layout class="QFormLayout" name="mailLayout_2">
+           <property name="fieldGrowthPolicy">
+            <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+           </property>
+           <item row="0" column="0">
+            <widget class="QLabel" name="adressProxyLabel">
              <property name="text">
-              <string>Порт</string>
+              <string>Адрес</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
+           <item row="0" column="1">
             <widget class="QLineEdit" name="adressProxy">
              <property name="minimumSize">
               <size>
-               <width>80</width>
-               <height>20</height>
+               <width>0</width>
+               <height>0</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>100</width>
-               <height>20</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
             </widget>
@@ -484,37 +520,59 @@
             <widget class="QLineEdit" name="portProxy">
              <property name="minimumSize">
               <size>
-               <width>40</width>
-               <height>20</height>
+               <width>0</width>
+               <height>0</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>40</width>
-               <height>20</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
             </widget>
            </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="adressProxyLabel">
+           <item row="1" column="0">
+            <widget class="QLabel" name="proxyPortLabel">
              <property name="text">
-              <string>Адрес</string>
+              <string>Порт</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="2">
-            <spacer name="horizontalSpacer_2">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+          </layout>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="proxyAuth">
+           <property name="text">
+            <string>Авторизация</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QGridLayout" name="gridLayout_2">
+           <item row="2" column="0">
+            <widget class="QLabel" name="proxyPassLabel">
+             <property name="text">
+              <string>Пароль</string>
              </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLineEdit" name="proxyLogin"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="proxyLoginLabel">
+             <property name="text">
+              <string>Логин</string>
              </property>
-            </spacer>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="proxyPass">
+             <property name="echoMode">
+              <enum>QLineEdit::Password</enum>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>

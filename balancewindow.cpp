@@ -20,16 +20,16 @@ BalanceWindow::BalanceWindow(QWidget *parent) :
 
     setupTrayIcon();
 
+
     trayMessageTimer = new QTimer();
     trayMessageTimer->setSingleShot(true);
     updateTimer = new QTimer();
     connect(updateTimer, SIGNAL(timeout()), this, SLOT(updateBalance()));
-
     connect(ui->updateAction, SIGNAL(triggered()), this, SLOT(updateBalance()));
 
-
-
     getSettings();
+
+    updateInfo();
 
     if(!d)
         updateBalance();
@@ -51,21 +51,16 @@ void BalanceWindow::closeEvent(QCloseEvent * event)
 
 void BalanceWindow::getSettings(){
 
-    settings=new QSettings(QString("%1\\config.ini").arg(QApplication::applicationDirPath()), QSettings::IniFormat);
-    settings->setIniCodec(QTextCodec::codecForName("UTF-8"));
+    settings = new Settings();
+    connect(settings, SIGNAL(balanceChanged()), this, SLOT(updateInfo()));
 
-    settings->beginGroup("MAIN");
-    double b = settings->value("LastBalance", 0.00).toDouble();
-    lastUpdate = settings->value("LastUpdate", QDateTime()).toDateTime();
-    updateTimer->setInterval(settings->value("UpdatePeriod", 3600000*60).toInt()*3600000);
-    _payment = settings->value("Payment",12.90).toDouble();
-    if(settings->value("AutoUpdate", true).toBool())
+    updateTimer->setInterval(settings->updatePeriodMsec());
+    if(settings->autoUpdate())
         updateTimer->start();
     else
         updateTimer->stop();
-    settings->endGroup();
 
-    setBalance(b);
+
 
 }
 
@@ -101,16 +96,9 @@ void BalanceWindow::setupTrayIcon(){
 
 }
 
-void BalanceWindow::setupConnection(){
-    proxy = new QNetworkProxy();
-    manager = new QNetworkAccessManager(this);
-    manager->setProxy(*proxy);
-    connect(manager, SIGNAL(proxyAuthenticationRequired(QNetworkProxy,QAuthenticator*)), this, SLOT(onproxyAuthenticationRequired(QNetworkProxy,QAuthenticator*)));
 
-    proxy->setType(QNetworkProxy::NoProxy);
-}
 
-void BalanceWindow::setupWebView(){
+void BalanceWindow::updateBalance(){
     webView = new BalanceWebView();
 
     //this->setCentralWidget(webView);
@@ -125,19 +113,21 @@ void BalanceWindow::setupWebView(){
     connect(webView,SIGNAL(loadProgress(int)),this,SLOT(progressLoad(int)));
     connect(webView,SIGNAL(loadFinished(bool)),this,SLOT(finishLoad(bool)));
 
+    webView->setupProxyConnection(settings->proxyType(),
+                                  settings->proxyAdress(),
+                                  settings->proxyPort(),
+                                  settings->proxyAuth(),
+                                  settings->proxyLogin(),
+                                  settings->proxyPass());
+
     webView->load(QUrl("https:////bill.sibttk.ru//login"));
 
-//        if(d)
-//            webView->show();
+    //        if(d)
+    //            webView->show();
 }
 
 void BalanceWindow::setStatus(QString text){
     status->setText(text);
-}
-
-void BalanceWindow::updateBalance(){
-    setupWebView();
-    setupConnection();
 }
 
 void BalanceWindow::updateTrayIcon(double b){
@@ -179,23 +169,31 @@ void BalanceWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
     }
 }
 
-void BalanceWindow::showMessage(QSystemTrayIcon::MessageIcon icon)
+void BalanceWindow::showMessage(Settings::LevelBalance level)
 {
     //    QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::MessageIcon(
     //            typeComboBox->itemData(typeComboBox->currentIndex()).toInt());
+    QSystemTrayIcon::MessageIcon icon;
+    switch(level){
+    case Settings::WARNING:
+        icon = QSystemTrayIcon::Warning;
+        break;
+    case Settings::CRITICAL:
+        icon = QSystemTrayIcon::Critical;
+        break;
+    default:
+        icon = QSystemTrayIcon::Information;
+
+    }
     trayIcon->showMessage("Текущее состояние счёта",
-                          QString("Баланс: %1 руб.\n"+(icon = QSystemTrayIcon::Information)||(icon = QSystemTrayIcon::Warning)?"Рекомендуется пополнить счёт до %2":"Сегодня")
-                          .arg(_balance)
-                          .arg(needPay.toString("dd.MM.yy")),
+                          QString("Баланс: %1 руб.\nРекомендуется пополнить счёт до %2")
+                          .arg(settings->balance())
+                          .arg(settings->needPay()),
                           icon, 1000);
     
 }
 
-void BalanceWindow::onproxyAuthenticationRequired(QNetworkProxy proxy, QAuthenticator *manager)
-{
-    manager->setUser("Anonumouse");
-    manager->setPassword("12345");
-}
+
 
 void BalanceWindow::progressLoad(int f){
 
@@ -208,28 +206,28 @@ void BalanceWindow::finishLoad(bool finished){
         if(webView->isHaveText("Лицевой счет")){ //Get balance
             setStatus("Авторизация прошла успешно");
 
-            updateBalance(webView->getBalance());
+            settings->setBalance(webView->getBalance());
 
             isAuthPage = true;
 
-            delete webView;
+            //delete webView;
         }
         else if(webView->isHaveText("Введенная информация неверна")){
             setStatus("Ошибка авторизации");
             progress->setValue(100);
-            delete webView;
+            //delete webView;
         }
         else{   //Login to bill system
             if(isAuthPage){
                 setStatus("Авторизация");
-                settings->beginGroup("AUTH");
-                webView->tryAuth(settings->value("Login").toString(),settings->value("Pass").toString());
+
+                webView->tryAuth(settings->login(),settings->pass());
                 settings->endGroup();
 
                 isAuthPage = false;}
             else{
                 setStatus("Что то пошло не так");
-                delete webView;
+                //delete webView;
             }
 
         }
@@ -245,50 +243,67 @@ void BalanceWindow::finishLoad(bool finished){
 
 }
 
-void BalanceWindow::updateBalance(double b)
+void BalanceWindow::updateInfo()
 {
-    lastUpdate = QDateTime::currentDateTime();
+    double balance = settings->balance();
+    ui->balance->setText(QString("%1").arg(balance));
+    updateTrayIcon(balance);
+    ui->lastUpdate->setText(settings->lastUpdate());
+    ui->dayTo->setText(QString("%1").arg(settings->dayToPay()));
 
-    if(b < _balance)
-        _payment = _balance - b;
+    ui->payTo->setText(settings->needPay());
 
-    setBalance(b);
+    if(settings->levelBalance()){
+        if(settings->trayNotice())
+            showMessage(settings->levelBalance());
+        if(settings->emailNotice())
+            sendEmail(settings->levelBalance());
+    }
 
-    updateMainSettings();
 
     setStatus("Готово");
 }
 
-void BalanceWindow::updateMainSettings(){
-    settings->beginGroup("MAIN");
-    settings->setValue("LastBalance",_balance);
-    settings->setValue("Payment",_payment);
-    settings->setValue("LastUpdate",lastUpdate);
+void BalanceWindow::sendEmail(Settings::LevelBalance level){
+    Smtp* smtp = new Smtp(settings->smtpLogin(),
+                          settings->smtpPass(),
+                          settings->smtpServer(),
+                          settings->smtpPort());
 
-    settings->endGroup();
-}
+    //connect(smtp, SIGNAL(status(QString)), this, SLOT(mailSent(QString)));
 
-void BalanceWindow::setBalance(double b){
-    _balance = b;
-    ui->balance->setText(QString("%1").arg(b));
-    updateTrayIcon(b);
-    ui->lastUpdate->setText(lastUpdate.toString("dd.MM.yyг. hh:mm"));
+    QString levelText;
+    QString subject;
+    switch(level){
+    case Settings::WARNING:
+        levelText = "ниже рекомендуемого";
+        subject = "Рекомендуется пополнить баланс";
+        break;
+    case Settings::CRITICAL:
+        levelText = "ниже критического";
+        subject = "Рекомендуется пополнить баланс";
+        break;
+    default:
+        levelText = "нормальный";
+        subject = "Сведения о балансе";
+    }
 
-    _balance >= 0 ?
-                ui->dayTo->setText(QString("%1").arg((_balance/_payment),0,'D',0)):
-                ui->dayTo->setText(0);
+    QString textMessage;
 
+    QFile message(QString("%1\\mailText.html").arg(QApplication::applicationDirPath()));
+    if(message.open(QFile::ReadOnly)){
+        textMessage = QString(message.readAll());
+        message.close();
+    }
 
-
-    needPay = QDate::currentDate().addDays((_balance/_payment)-1);
-    ui->payTo->setText(needPay.toString("dd.MM.yy"));
-
-    settings->beginGroup("NOTICE");
-    if(_balance < settings->value("CriticalBalance", 15).toDouble()){
-        showMessage(QSystemTrayIcon::Critical);}
-    else if(_balance < settings->value("WarningBalance", 70).toDouble()){
-        showMessage(QSystemTrayIcon::Warning);}
-    settings->endGroup();
+    smtp->sendMail("Balance Manager",
+                   settings->smtpEmail(),
+                   subject,
+                   textMessage.arg(levelText)
+                   .arg(settings->balance())
+                   .arg(settings->needPay())
+                   .arg(settings->updatePeriod())
+                   );
 }
 
 
@@ -299,7 +314,8 @@ void BalanceWindow::on_quitAction_triggered()
 
 void BalanceWindow::on_settingsAction_triggered()
 {
-    SettingsDialog *d = new SettingsDialog(this);
+    SettingsDialog *d = new SettingsDialog(settings, this);
+    connect(d,SIGNAL(testEmail()), this, SLOT(sendEmail()));
     d->setModal(true);
     d->show();
 }

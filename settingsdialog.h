@@ -2,7 +2,7 @@
 #define SETTINGSDIALOG_H
 
 #include <QDialog>
-#include <QSettings>
+#include <settings.h>
 #include <QTextCodec>
 
 namespace Ui {
@@ -14,10 +14,10 @@ class SettingsDialog : public QDialog
     Q_OBJECT
 
 private:
-    QSettings *settings;
+    Settings *settings;
 
-    public:
-    explicit SettingsDialog(QWidget *parent = 0);
+public:
+    explicit SettingsDialog(Settings *set, QWidget *parent = 0);
     ~SettingsDialog();
 
 private slots:
@@ -31,8 +31,16 @@ private slots:
 
     void valueChanged();
 
+    void proxyAuthChanged();
+
+    void proxyTypeCahnged();
+
+    void on_pushButton_clicked();
+
 private:
     Ui::SettingsDialog *ui;
+signals:
+    void testEmail();
 };
 
 #endif // SETTINGSDIALOG_H

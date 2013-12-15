@@ -1,7 +1,7 @@
 ﻿#include "settingsdialog.h"
 #include "ui_settingsdialog.h"
 
-SettingsDialog::SettingsDialog(QWidget *parent) :
+SettingsDialog::SettingsDialog(Settings *set, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SettingsDialog)
 {
@@ -13,60 +13,64 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     ui->smtpTab->setLayout(ui->mailLayout);
     ui->noticeTab->setLayout(ui->noticeLayout);
     connect(ui->criticalSpinBox,SIGNAL(valueChanged(double)),this,SLOT(valueChanged()));
+    connect(ui->withoutProxyRadio,SIGNAL(toggled(bool)),this,SLOT(proxyTypeCahnged()));
+    connect(ui->httpProxyRadio,SIGNAL(toggled(bool)),this,SLOT(proxyTypeCahnged()));
+    connect(ui->socks5ProxyRadio,SIGNAL(toggled(bool)),this,SLOT(proxyTypeCahnged()));
+
+    connect(ui->socks5ProxyRadio,SIGNAL(toggled(bool)),this,SLOT(proxyTypeCahnged()));
+
+    connect(ui->proxyAuth,SIGNAL(toggled(bool)),this,SLOT(proxyAuthChanged()));
+
+    settings = set;
 
     loadSettings();
+
+    proxyTypeCahnged();
+
+    proxyAuthChanged();
 }
 
 void SettingsDialog::loadSettings(){
-    QSettings sett("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               QSettings::NativeFormat);
 
-    ui->autoStartCheckBox->setChecked(sett.childKeys().contains("BalanceManager",Qt::CaseSensitive));
+    ui->autoStartCheckBox->setChecked(settings->autoStart());
 
-    settings = new QSettings(QString("%1\\config.ini").arg(QApplication::applicationDirPath()), QSettings::IniFormat);
-    settings->setIniCodec(QTextCodec::codecForName("UTF-8"));
+    ui->autoUpdateCheckBox->setChecked(settings->autoUpdate());
+    ui->periodSpinBox->setValue(settings->updatePeriod());
 
-    settings->beginGroup("MAIN");
-    ui->autoUpdateCheckBox->setChecked(settings->value("AutoUpdate",true).toBool());
-    ui->periodSpinBox->setValue(settings->value("UpdatePeriod",6).toInt());
-    settings->endGroup();
+    ui->login->setText(settings->login());
+    ui->password->setText(settings->pass());
 
-    settings->beginGroup("AUTH");
-    ui->login->setText(settings->value("Login","anonymous").toString());
-    ui->password->setText(settings->value("Pass","12345").toString());
-    settings->endGroup();
+    ui->noticeTrayCheckBox->setChecked(settings->trayNotice());
+    ui->noticeEmailCheckBox->setChecked(settings->emailNotice());
+    ui->lowerWarning->setChecked(settings->lowerWarning());
+    ui->lowerCritical->setChecked(settings->lowerCritical());
+    ui->warningSpinBox->setValue(settings->warningBalance());
+    ui->criticalSpinBox->setValue(settings->criticalBalance());
 
-    settings->beginGroup("NOTICE");
-    ui->noticeTrayCheckBox->setChecked(settings->value("TrayNotice",true).toBool());
-    ui->noticeEmailCheckBox->setChecked(settings->value("EmailNotice",true).toBool());
-    ui->lowerWarning->setChecked(settings->value("LowerWarning",true).toBool());
-    ui->lowerCritical->setChecked(settings->value("LowerCritical",true).toBool());
-    ui->warningSpinBox->setValue(settings->value("WarningBalance",70.0).toDouble());
-    ui->criticalSpinBox->setValue(settings->value("CriticalBalance",15.0).toDouble());
-    settings->endGroup();
+    ui->smtpServer->setText(settings->smtpServer());
+    ui->smtpPort->setText(QString("%1").arg(settings->smtpPort()));
+    ui->smtpLogin->setText(settings->smtpLogin());
+    ui->smtpPass->setText(settings->smtpPass());
+    ui->smtpEmail->setText(settings->smtpEmail());
 
-    settings->beginGroup("SMTP");
-    ui->smtpServer->setText(settings->value("Server","smtp.gmail.com").toString());
-    ui->smtpPort->setText(settings->value("Port",554).toString());
-    ui->smtpLogin->setText(settings->value("Login","anonymous").toString());
-    ui->smtpPass->setText(settings->value("Pass","1245").toString());
-    settings->endGroup();
-
-    settings->beginGroup("PROXY");
-    switch(settings->value("ProxyType","0").toInt()){
+    switch(settings->proxyType()){
     case 1:
         ui->httpProxyRadio->setChecked(true);
         break;
     case 2:
+        ui->httpCashingProxyRadio->setChecked(true);
+        break;
+    case 3:
         ui->socks5ProxyRadio->setChecked(true);
+        break;
     default:
         ui->withoutProxyRadio->setChecked(true);
         break;
     }
-    ui->adressProxy->setText(settings->value("ProxyAdress","").toString());
-    ui->portProxy->setText(settings->value("ProxyPort","").toString());
-
-    settings->endGroup();
+    ui->adressProxy->setText(settings->proxyAdress());
+    ui->portProxy->setText(QString("%1").arg(settings->proxyPort()));
+    ui->proxyLogin->setText(settings->proxyLogin());
+    ui->proxyPass->setText(settings->proxyPass());
 
 }
 
@@ -77,49 +81,43 @@ SettingsDialog::~SettingsDialog()
 
 void SettingsDialog::on_buttonBox_accepted()
 {
-    QSettings sett("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               QSettings::NativeFormat);
-    if(ui->autoStartCheckBox->isChecked())
-        sett.setValue("BalanceManager",QString("\"%1\"").arg(QApplication::applicationFilePath().replace("/","\\")));
-    else
-        sett.remove("BalanceManager");
+    settings->setMainSettings(ui->autoStartCheckBox->isChecked(),
+                              ui->autoUpdateCheckBox->isChecked(),
+                              ui->periodSpinBox->value());
 
-    settings->beginGroup("MAIN");
-    settings->setValue("AutoUpdate",ui->autoUpdateCheckBox->isChecked());
-    settings->setValue("UpdatePeriod",ui->periodSpinBox->value());
-    settings->endGroup();
+    settings->setAuthSettings(ui->login->text(),
+                              ui->password->text());
 
-    settings->beginGroup("AUTH");
-    settings->setValue("Login",ui->login->text());
-    settings->setValue("Pass",ui->password->text());
-    settings->endGroup();
+    settings->setupNoticeSettings(ui->noticeTrayCheckBox->isChecked(),
+                                  ui->noticeEmailCheckBox->isChecked(),
+                                  ui->lowerWarning->isChecked(),
+                                  ui->lowerCritical->isChecked(),
+                                  ui->warningSpinBox->value(),
+                                  ui->criticalSpinBox->value());
 
-    settings->beginGroup("NOTICE");
-    settings->setValue("TrayNotice",ui->noticeTrayCheckBox->isChecked());
-    settings->setValue("EmailNotice",ui->noticeEmailCheckBox->isChecked());
-    settings->setValue("LowerWarning",ui->lowerWarning->isChecked());
-    settings->setValue("LowerCritical",ui->lowerCritical->isChecked());
-    settings->setValue("WarningBalance",ui->warningSpinBox->value());
-    settings->setValue("CriticalBalance",ui->criticalSpinBox->value());
-    settings->endGroup();
+    settings->setupSmtpSettings(ui->smtpServer->text(),
+                                ui->smtpPort->text().toInt(),
+                                ui->smtpLogin->text(),
+                                ui->smtpPass->text(),
+                                ui->smtpEmail->text());
 
-    settings->beginGroup("SMTP");
-    settings->setValue("Server",ui->smtpServer->text());
-    settings->setValue("Port",ui->smtpPort->text().toInt());
-    settings->setValue("Login",ui->smtpLogin->text());
-    settings->setValue("Pass",ui->smtpPass->text());
-    settings->endGroup();
 
-    settings->beginGroup("PROXY");
+    int proxyType;
     if(ui->httpProxyRadio->isChecked())
-        settings->setValue("ProxyType", 1);
+        proxyType = 1;
+    else if(ui->httpCashingProxyRadio->isChecked())
+        proxyType = 2;
     else if(ui->socks5ProxyRadio->isChecked())
-        settings->setValue("ProxyType", 2);
-    else settings->setValue("ProxyType", 0);
+        proxyType = 3;
+    else
+        proxyType = 0;
 
-    settings->setValue("ProxyAdress",ui->adressProxy->text());
-    settings->setValue("ProxyPort",ui->portProxy->text().toInt());
-    settings->endGroup();
+    settings->setupProxySettings(proxyType,
+                                 ui->adressProxy->text(),
+                                 ui->portProxy->text().toInt(),
+                                 ui->proxyAuth->isChecked(),
+                                 ui->proxyLogin->text(),
+                                 ui->proxyPass->text());
 }
 
 void SettingsDialog::on_buttonBox_rejected()
@@ -147,4 +145,55 @@ void SettingsDialog::valueChanged()
 {
     if(ui->warningSpinBox->value() < ui->criticalSpinBox->value())
         ui->warningSpinBox->setValue(ui->criticalSpinBox->value());
+}
+
+void SettingsDialog::proxyTypeCahnged(){
+
+    if(ui->withoutProxyRadio->isChecked())
+    {
+        ui->proxyLogin->setEnabled(false);
+        ui->proxyPass->setEnabled(false);
+        ui->proxyLoginLabel->setEnabled(false);
+        ui->proxyPassLabel->setEnabled(false);
+        ui->adressProxy->setEnabled(false);
+        ui->adressProxyLabel->setEnabled(false);
+        ui->portProxy->setEnabled(false);
+        ui->proxyPortLabel->setEnabled(false);
+        ui->proxyAuth->setEnabled(false);
+    }
+    else
+    {
+        ui->proxyLogin->setEnabled(true);
+        ui->proxyPass->setEnabled(true);
+        ui->proxyLoginLabel->setEnabled(true);
+        ui->proxyPassLabel->setEnabled(true);
+        ui->adressProxy->setEnabled(true);
+        ui->adressProxyLabel->setEnabled(true);
+        ui->portProxy->setEnabled(true);
+        ui->proxyPortLabel->setEnabled(true);
+        ui->proxyAuth->setEnabled(true);
+    }
+    proxyAuthChanged();
+}
+
+void SettingsDialog::proxyAuthChanged(){
+    if(ui->proxyAuth->isChecked() && ui->proxyAuth->isEnabled()){
+        ui->proxyLogin->setEnabled(true);
+        ui->proxyPass->setEnabled(true);
+        ui->proxyLoginLabel->setEnabled(true);
+        ui->proxyPassLabel->setEnabled(true);
+    }
+    else{
+        ui->proxyLogin->setEnabled(false);
+        ui->proxyPass->setEnabled(false);
+        ui->proxyLoginLabel->setEnabled(false);
+        ui->proxyPassLabel->setEnabled(false);
+    }
+
+}
+
+
+void SettingsDialog::on_pushButton_clicked()
+{
+    emit testEmail();
 }

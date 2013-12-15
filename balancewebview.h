@@ -6,6 +6,10 @@
 #include <QWebElement>
 #include <QWebElementCollection>
 
+#include <QNetworkProxy>
+#include <QNetworkAccessManager>
+#include <QAuthenticator>
+
 class BalanceWebView : public QWebView
 {
     Q_OBJECT
@@ -20,7 +24,14 @@ public:
 
 signals:
 
+private:
+    QNetworkProxy *proxy;
+    QNetworkAccessManager *manager;
+
 public slots:
+    void onproxyAuthenticationRequired(QNetworkProxy proxy, QAuthenticator *manager);
+    void setupProxyConnection(int proxyType, QString proxyAdress, int proxyPort,
+                              bool proxyAuth, QString proxyLogin, QString proxyPass);
 
 };
 
